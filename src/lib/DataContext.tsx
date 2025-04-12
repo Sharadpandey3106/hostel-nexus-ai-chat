@@ -22,6 +22,12 @@ export interface Complaint {
   category: 'Room' | 'Mess' | 'Facility' | 'Other';
   status: 'Open' | 'In Progress' | 'Resolved';
   timestamp: string;
+  resolvedTimestamp?: string;
+  followUps?: Array<{
+    id: string;
+    message: string;
+    timestamp: string;
+  }>;
 }
 
 export interface MessMenu {
@@ -41,6 +47,8 @@ interface DataContextType {
   deleteStudent: (id: string) => void;
   addComplaint: (complaint: Complaint) => void;
   updateComplaint: (id: string, complaint: Partial<Complaint>) => void;
+  resolveComplaint: (id: string) => void;
+  followUpComplaint: (id: string, message: string) => void;
   getStudentById: (id: string) => Student | undefined;
   currentUser: Student | null;
   login: (email: string, password: string) => boolean;
@@ -210,6 +218,44 @@ export const DataProvider: React.FC<{children: React.ReactNode}> = ({ children }
     );
   };
 
+  const resolveComplaint = (id: string) => {
+    setComplaints(
+      complaints.map((complaint) =>
+        complaint.id === id 
+          ? { 
+              ...complaint, 
+              status: 'Resolved', 
+              resolvedTimestamp: new Date().toISOString() 
+            } 
+          : complaint
+      )
+    );
+  };
+
+  const followUpComplaint = (id: string, message: string) => {
+    setComplaints(
+      complaints.map((complaint) => {
+        if (complaint.id === id) {
+          const followUps = complaint.followUps || [];
+          return {
+            ...complaint,
+            followUps: [
+              ...followUps,
+              {
+                id: Date.now().toString(),
+                message,
+                timestamp: new Date().toISOString()
+              }
+            ],
+            // If a complaint is resolved and gets a follow-up, reopen it
+            status: complaint.status === 'Resolved' ? 'Open' : complaint.status
+          };
+        }
+        return complaint;
+      })
+    );
+  };
+
   // Auth functions (simplified for local demo)
   const login = (email: string, password: string) => {
     // For demo purposes, we're not checking passwords
@@ -236,6 +282,8 @@ export const DataProvider: React.FC<{children: React.ReactNode}> = ({ children }
         deleteStudent,
         addComplaint,
         updateComplaint,
+        resolveComplaint,
+        followUpComplaint,
         getStudentById,
         currentUser,
         login,

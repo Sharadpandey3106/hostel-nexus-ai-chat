@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
 import Chatbot from '@/components/Chatbot';
+import ComplaintsList from '@/components/ComplaintsList';
 import { useNavigate } from 'react-router-dom';
 import { 
   Home, 
@@ -247,35 +248,7 @@ const Dashboard = () => {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Recent Complaints</h2>
         <Card className="mb-8">
           <CardContent className="p-6">
-            {userComplaints.length > 0 ? (
-              <div className="divide-y">
-                {userComplaints.map((complaint) => (
-                  <div key={complaint.id} className="py-4 first:pt-0 last:pb-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium">{complaint.title}</h4>
-                      <Badge 
-                        variant={
-                          complaint.status === 'Resolved' ? 'default' :
-                          complaint.status === 'In Progress' ? 'secondary' : 'outline'
-                        }
-                      >
-                        {complaint.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">{complaint.description}</p>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Category: {complaint.category}</span>
-                      <span>Reported on: {new Date(complaint.timestamp).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-gray-500">You haven't filed any complaints yet.</p>
-                <Button className="mt-4" onClick={() => navigate('/complaints')}>Report an Issue</Button>
-              </div>
-            )}
+            <ComplaintsList complaints={userComplaints} compact={true} />
           </CardContent>
         </Card>
       </div>

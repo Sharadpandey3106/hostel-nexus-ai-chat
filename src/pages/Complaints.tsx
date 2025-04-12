@@ -4,15 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import Navbar from '@/components/Navbar';
 import Chatbot from '@/components/Chatbot';
+import ComplaintsList from '@/components/ComplaintsList';
 import { useData } from '@/lib/DataContext';
-import { AlertTriangle, CheckCircle2, Clock, MailQuestion, ClipboardList, RotateCcw } from 'lucide-react';
+import { AlertTriangle, ClipboardList, Clock } from 'lucide-react';
 
 const Complaints = () => {
   const { currentUser, complaints, addComplaint } = useData();
@@ -62,34 +62,6 @@ const Complaints = () => {
       description: '',
       category: 'Room'
     });
-  };
-  
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Open':
-        return <Badge variant="outline" className="text-amber-600 bg-amber-50 border-amber-200">Open</Badge>;
-      case 'In Progress':
-        return <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-200">In Progress</Badge>;
-      case 'Resolved':
-        return <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">Resolved</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-  
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'Room':
-        return <div className="p-2 rounded-full bg-blue-100"><AlertTriangle className="h-4 w-4 text-blue-600" /></div>;
-      case 'Mess':
-        return <div className="p-2 rounded-full bg-amber-100"><AlertTriangle className="h-4 w-4 text-amber-600" /></div>;
-      case 'Facility':
-        return <div className="p-2 rounded-full bg-purple-100"><AlertTriangle className="h-4 w-4 text-purple-600" /></div>;
-      case 'Other':
-        return <div className="p-2 rounded-full bg-gray-100"><AlertTriangle className="h-4 w-4 text-gray-600" /></div>;
-      default:
-        return <div className="p-2 rounded-full bg-gray-100"><AlertTriangle className="h-4 w-4 text-gray-600" /></div>;
-    }
   };
   
   return (
@@ -187,86 +159,37 @@ const Complaints = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {userComplaints.length > 0 ? (
-                  <div className="space-y-6">
-                    {userComplaints.map((complaint) => (
-                      <div key={complaint.id} className="border rounded-lg shadow-sm overflow-hidden">
-                        <div className="p-4 bg-white">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-start space-x-3">
-                              {getCategoryIcon(complaint.category)}
-                              <div>
-                                <h3 className="font-medium text-gray-900">{complaint.title}</h3>
-                                <p className="text-sm text-gray-500">Category: {complaint.category}</p>
-                              </div>
-                            </div>
-                            <div>{getStatusBadge(complaint.status)}</div>
-                          </div>
-                          
-                          <div className="mt-4">
-                            <p className="text-sm text-gray-600">{complaint.description}</p>
-                          </div>
-                          
-                          <div className="mt-4 flex justify-between text-xs text-gray-500">
-                            <span>Reported on: {new Date(complaint.timestamp).toLocaleDateString()}</span>
-                            <div className="flex space-x-2">
-                              {complaint.status !== 'Resolved' && (
-                                <Button variant="link" className="h-auto p-0 text-xs" size="sm">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Mark as Resolved
-                                </Button>
-                              )}
-                              <Button variant="link" className="h-auto p-0 text-xs" size="sm">
-                                <RotateCcw className="h-3 w-3 mr-1" />
-                                Follow Up
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {complaint.status === 'In Progress' && (
-                          <div className="bg-blue-50 p-3 border-t">
-                            <p className="text-xs text-blue-700">
-                              <Clock className="h-3 w-3 inline mr-1" />
-                              Your complaint is being processed. The maintenance team will contact you soon.
-                            </p>
-                          </div>
-                        )}
-                        
-                        {complaint.status === 'Resolved' && (
-                          <div className="bg-green-50 p-3 border-t">
-                            <p className="text-xs text-green-700">
-                              <CheckCircle2 className="h-3 w-3 inline mr-1" />
-                              This issue has been resolved. If you're still facing problems, please follow up.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 text-center">
-                    <MailQuestion className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">No complaints found</h3>
-                    <p className="mt-2 text-gray-500">You haven't submitted any complaints yet.</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-6"
-                      onClick={() => {
-                        const tabTrigger = document.querySelector('[data-value="new"]') as HTMLElement;
-                        if (tabTrigger) {
-                          tabTrigger.click();
-                        }
-                      }}
-                    >
-                      Report a New Issue
-                    </Button>
-                  </div>
-                )}
+                <ComplaintsList complaints={userComplaints} />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+        
+        <div className="mt-8 bg-amber-50 border border-amber-200 rounded-lg p-5">
+          <div className="flex items-start">
+            <div className="mr-4">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-amber-800">Need immediate assistance?</h3>
+              <p className="mt-1 text-amber-700">
+                You can also use our chatbot to report issues and get immediate help. Click the chat button in the bottom right corner.
+              </p>
+              <Button 
+                variant="outline" 
+                className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100"
+                onClick={() => {
+                  const chatButton = document.querySelector('.fixed.bottom-5.right-5 button') as HTMLElement;
+                  if (chatButton) {
+                    chatButton.click();
+                  }
+                }}
+              >
+                Open Chatbot
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
       
       <Chatbot />
