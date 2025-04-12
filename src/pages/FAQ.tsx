@@ -276,7 +276,12 @@ const FAQ = () => {
               <div className="mt-4 flex space-x-4">
                 <Button 
                   variant="default" 
-                  onClick={() => document.querySelector('.fixed.bottom-5.right-5 button')?.click()}
+                  onClick={() => {
+                    const chatButton = document.querySelector('.fixed.bottom-5.right-5 button') as HTMLElement;
+                    if (chatButton) {
+                      chatButton.click();
+                    }
+                  }}
                 >
                   Chat with Assistant
                 </Button>

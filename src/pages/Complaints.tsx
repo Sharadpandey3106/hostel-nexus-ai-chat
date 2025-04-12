@@ -252,7 +252,12 @@ const Complaints = () => {
                     <Button 
                       variant="outline" 
                       className="mt-6"
-                      onClick={() => document.querySelector('[data-value="new"]')?.click()}
+                      onClick={() => {
+                        const tabTrigger = document.querySelector('[data-value="new"]') as HTMLElement;
+                        if (tabTrigger) {
+                          tabTrigger.click();
+                        }
+                      }}
                     >
                       Report a New Issue
                     </Button>
