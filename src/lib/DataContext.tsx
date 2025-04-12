@@ -149,7 +149,7 @@ const sampleMessMenu: MessMenu[] = [
 ];
 
 // Create a provider component
-export const DataProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   // Load data from localStorage or use sample data
   const [students, setStudents] = useState<Student[]>(() => {
     const savedStudents = localStorage.getItem('students');
