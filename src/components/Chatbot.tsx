@@ -1,11 +1,11 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { MessageCircle, Send, X, Maximize, Minimize, AlertTriangle } from 'lucide-react';
+import { MessageCircle, Send, X, Maximize, Minimize, AlertTriangle, Loader2 } from 'lucide-react';
 import { useData } from '@/lib/DataContext';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -27,6 +27,7 @@ const Chatbot: React.FC = () => {
       timestamp: new Date()
     }
   ]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isComplaintMode, setIsComplaintMode] = useState(false);
   const [complaintDetails, setComplaintDetails] = useState({
     title: '',
@@ -69,7 +70,7 @@ const Chatbot: React.FC = () => {
     });
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (message.trim() === '') return;
 
     const newUserMessage: Message = {
@@ -79,7 +80,7 @@ const Chatbot: React.FC = () => {
       timestamp: new Date()
     };
     
-    setMessages([...messages, newUserMessage]);
+    setMessages(prevMessages => [...prevMessages, newUserMessage]);
     setMessage('');
 
     if (isComplaintMode) {
@@ -95,11 +96,63 @@ const Chatbot: React.FC = () => {
       ) {
         startComplaintFlow();
       } else {
-        // Regular chatbot response
-        setTimeout(() => {
-          generateResponse(message);
-        }, 1000);
+        // Call the Gemini AI
+        await callGeminiAI(message);
       }
+    }
+  };
+
+  const callGeminiAI = async (userMessage: string) => {
+    setIsLoading(true);
+    try {
+      // Get a limited conversation history for context (last 10 messages)
+      const conversationHistory = messages.slice(-10).map(msg => ({
+        content: msg.content,
+        sender: msg.sender
+      }));
+
+      // Call our Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('gemini-chat', {
+        body: { 
+          message: userMessage,
+          conversationHistory: conversationHistory
+        }
+      });
+
+      if (error) {
+        console.error('Error calling Gemini API:', error);
+        
+        const fallbackResponse: Message = {
+          id: Date.now().toString(),
+          content: "I'm having trouble connecting to my brain right now. Please try again later.",
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        
+        setMessages(prevMessages => [...prevMessages, fallbackResponse]);
+      } else {
+        const botResponse: Message = {
+          id: Date.now().toString(),
+          content: data.response,
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        
+        setMessages(prevMessages => [...prevMessages, botResponse]);
+      }
+    } catch (error) {
+      console.error('Error in AI processing:', error);
+      
+      const errorResponse: Message = {
+        id: Date.now().toString(),
+        content: "Something went wrong. Please try again.",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
+      setMessages(prevMessages => [...prevMessages, errorResponse]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -224,58 +277,6 @@ const Chatbot: React.FC = () => {
     }
   };
 
-  const generateResponse = (userMessage: string) => {
-    // This is where we would integrate with Gemini AI
-    // For now, we'll use our simplified response system
-    const lowercaseMessage = userMessage.toLowerCase();
-    let botResponse = '';
-
-    // Note: In a real implementation, you would call the Gemini AI API here
-    // const geminiResponse = await callGeminiAPI(userMessage);
-    // botResponse = geminiResponse;
-
-    // Fallback responses if Gemini API is not integrated
-    if (lowercaseMessage.includes('room') && (lowercaseMessage.includes('book') || lowercaseMessage.includes('reserve'))) {
-      botResponse = 'To book a room, please visit the Room Management section on the dashboard. You can check available rooms and submit a booking request there.';
-    } 
-    else if (lowercaseMessage.includes('mess') && (lowercaseMessage.includes('menu') || lowercaseMessage.includes('food'))) {
-      botResponse = 'You can check the mess menu for the entire week in the Mess Menu section. It includes breakfast, lunch, snacks, and dinner for each day.';
-    }
-    else if (lowercaseMessage.includes('complaint') || lowercaseMessage.includes('issue')) {
-      botResponse = 'To report a complaint or issue, I can help you file it directly through this chat. Would you like to start the complaint process now?';
-      // Start complaint flow on next message
-      startComplaintFlow();
-      return;
-    }
-    else if (lowercaseMessage.includes('payment') || lowercaseMessage.includes('fee') || lowercaseMessage.includes('due')) {
-      botResponse = 'You can view your payment details and outstanding dues on your dashboard. For payment methods, please contact the hostel administration office.';
-    }
-    else if (lowercaseMessage.includes('wifi') || lowercaseMessage.includes('internet')) {
-      botResponse = 'WiFi is available throughout the hostel. The network name is "HostelNet" and the password can be obtained from the reception desk.';
-    }
-    else if (lowercaseMessage.includes('laundry')) {
-      botResponse = 'Laundry services are available on the ground floor. Operating hours are from 8 AM to 8 PM every day.';
-    }
-    else if (lowercaseMessage.includes('hello') || lowercaseMessage.includes('hi') || lowercaseMessage.includes('hey')) {
-      botResponse = 'Hello! How can I assist you with hostel or mess related queries today? You can also report complaints directly through this chat.';
-    }
-    else if (lowercaseMessage.includes('gemini') || lowercaseMessage.includes('ai')) {
-      botResponse = 'I\'m powered by an AI assistant designed to help with hostel management queries. For complex queries, I can connect you with the hostel administration.';
-    }
-    else {
-      botResponse = 'I\'m not sure I understand. Could you please rephrase your question? You can ask about hostel facilities, mess menu, or report complaints.';
-    }
-
-    const newBotMessage: Message = {
-      id: Date.now().toString(),
-      content: botResponse,
-      sender: 'bot',
-      timestamp: new Date()
-    };
-
-    setMessages(prevMessages => [...prevMessages, newBotMessage]);
-  };
-
   return (
     <div className="fixed bottom-5 right-5 z-50">
       {isOpen ? (
@@ -344,6 +345,12 @@ const Chatbot: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                {isLoading && (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-500 mr-2" />
+                    <span className="text-sm text-gray-500">AI is thinking...</span>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
               <div className="p-3 border-t bg-white">
@@ -354,14 +361,15 @@ const Chatbot: React.FC = () => {
                     onKeyPress={handleKeyPress}
                     placeholder={isComplaintMode ? "Enter complaint details..." : "Type your message..."}
                     className="flex-1"
+                    disabled={isLoading}
                   />
                   <Button 
                     size="icon" 
                     onClick={handleSendMessage}
-                    disabled={message.trim() === ''}
+                    disabled={message.trim() === '' || isLoading}
                     className={isComplaintMode ? "bg-amber-600 hover:bg-amber-700" : ""}
                   >
-                    <Send size={18} />
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send size={18} />}
                   </Button>
                 </div>
                 {isComplaintMode && (
