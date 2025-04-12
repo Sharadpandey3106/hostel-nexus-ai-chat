@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -5,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { MessageCircle, Send, X, Maximize, Minimize, AlertTriangle, Loader2 } from 'lucide-react';
 import { useData } from '@/lib/DataContext';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -96,7 +96,7 @@ const Chatbot: React.FC = () => {
       ) {
         startComplaintFlow();
       } else {
-        // Call the Gemini AI
+        // Call the Gemini AI directly
         await callGeminiAI(message);
       }
     }
@@ -105,41 +105,77 @@ const Chatbot: React.FC = () => {
   const callGeminiAI = async (userMessage: string) => {
     setIsLoading(true);
     try {
+      // Get API key from environment variable
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("API key not found");
+      }
+
       // Get a limited conversation history for context (last 10 messages)
       const conversationHistory = messages.slice(-10).map(msg => ({
-        content: msg.content,
-        sender: msg.sender
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
       }));
 
-      // Call our Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke('gemini-chat', {
-        body: { 
-          message: userMessage,
-          conversationHistory: conversationHistory
-        }
+      // Format the conversation history for Gemini API
+      const systemInstruction = {
+        role: 'system',
+        parts: [{ 
+          text: `You are an AI assistant for HostelNexus, a hostel management system. 
+          Help students with their queries about hostel facilities, mess menu, room bookings, 
+          and complaints. Be friendly, helpful, and concise. 
+          KEEP ALL RESPONSES SHORT AND PRECISE, UNDER 30 WORDS.
+          If users report a serious problem, tell them their complaint will be forwarded to the officials directly.
+          For room related issues, provide guidance on the room management section.
+          For mess related queries, refer to the mess menu section.
+          Provide practical answers based on typical hostel management scenarios.`
+        }]
+      };
+
+      const fullPrompt = [systemInstruction, ...conversationHistory, {
+        role: 'user',
+        parts: [{ text: userMessage }]
+      }];
+
+      // Call the Gemini API directly
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: fullPrompt,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500,
+          }
+        })
       });
 
-      if (error) {
-        console.error('Error calling Gemini API:', error);
-        
-        const fallbackResponse: Message = {
-          id: Date.now().toString(),
-          content: "I'm having trouble connecting to my brain right now. Please try again later.",
-          sender: 'bot',
-          timestamp: new Date()
-        };
-        
-        setMessages(prevMessages => [...prevMessages, fallbackResponse]);
-      } else {
-        const botResponse: Message = {
-          id: Date.now().toString(),
-          content: data.response,
-          sender: 'bot',
-          timestamp: new Date()
-        };
-        
-        setMessages(prevMessages => [...prevMessages, botResponse]);
+      const result = await response.json();
+      
+      // Extract the generated text from the response
+      let generatedText = "";
+      
+      if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+        // Extract text from parts
+        generatedText = result.candidates[0].content.parts
+          .map((part: any) => part.text)
+          .join("");
+      } else if (result.error) {
+        console.error("Gemini API error:", result.error);
+        generatedText = "Sorry, I encountered an error. Please try again later.";
       }
+
+      const botResponse: Message = {
+        id: Date.now().toString(),
+        content: generatedText,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
+      setMessages(prevMessages => [...prevMessages, botResponse]);
     } catch (error) {
       console.error('Error in AI processing:', error);
       
